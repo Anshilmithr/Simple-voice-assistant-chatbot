@@ -1,0 +1,181 @@
+import speech_recognition as sr
+import pyttsx3
+import pywhatkit
+import datetime
+import wikipedia
+import pyjokes
+import time
+import webbrowser
+import os
+import requests
+
+# Define your name
+your_name = "Phantom"
+
+listener = sr.Recognizer()
+engine = pyttsx3.init()
+voices = engine.getProperty('voices')
+engine.setProperty('voice', voices[1].id)
+
+stopwatch_start_time = None
+timer_end_time = None
+timer_active = False
+
+def talk(text):
+    engine.say(text)
+    engine.runAndWait()
+
+def take_command():
+    try:
+        with sr.Microphone() as source:
+            print('Listening...')
+            voice = listener.listen(source)
+            command = listener.recognize_google(voice)
+            command = command.lower()
+            if your_name in command:
+                command = command.replace(your_name, '')
+                print(command)
+            return command
+    except sr.UnknownValueError:
+        print("Sorry, I couldn't understand your command.")
+    except sr.RequestError:
+        print("I'm having trouble accessing the Google API. Please check your internet connection.")
+    return ""
+
+def play_music(song):
+    talk('Playing ' + song)
+    pywhatkit.playonyt(song)
+
+def get_time():
+    current_time = datetime.datetime.now().strftime('%I:%M %p')
+    response = 'Current time is ' + current_time
+    print(response)
+    talk(response)
+
+def search_wikipedia(query):
+    try:
+        info = wikipedia.summary(query, 1)
+        print(info)
+        talk(info)
+    except wikipedia.exceptions.DisambiguationError as e:
+        print("I found multiple results. Please specify the query.")
+        talk("I found multiple results. Please specify the query.")
+    except wikipedia.exceptions.PageError as e:
+        print(f"Sorry, I couldn't find information about {query}.")
+        talk(f"Sorry, I couldn't find information about {query}.")
+
+def get_date():
+    current_date = datetime.datetime.now().strftime('%B %d, %Y')
+    print(current_date)
+    talk('Today is ' + current_date)
+
+def are_you_single():
+    talk('I am in a relationship with Wi-Fi.')
+
+def tell_joke():
+    talk(pyjokes.get_joke())
+
+def start_stopwatch():
+    global stopwatch_start_time
+    stopwatch_start_time = time.time()
+    talk("Stopwatch started")
+
+def stop_stopwatch():
+    if stopwatch_start_time is not None:
+        elapsed_time = time.time() - stopwatch_start_time
+        talk(f"Stopwatch stopped. Elapsed time is {elapsed_time:.2f} seconds.")
+    else:
+        talk("Stopwatch is not running.")
+
+def start_timer(duration):
+    global timer_end_time, timer_active
+    timer_end_time = time.time() + duration
+    timer_active = True
+    talk(f"Timer set for {duration} seconds")
+
+def stop_timer():
+    global timer_active
+    if timer_active:
+        remaining_time = timer_end_time - time.time()
+        if remaining_time > 0:
+            talk(f"Timer stopped. {remaining_time:.2f} seconds remaining.")
+        else:
+            talk("Timer completed.")
+        timer_active = False
+    else:
+        talk("No active timer")
+
+def search_web(query):
+    url = f"https://www.google.com/search?q={query}"
+    webbrowser.open(url)
+    talk(f"Here are the search results for {query}")
+
+def open_application(app_name):
+    if "notepad" in app_name:
+        os.system("notepad")
+        talk("Opening Notepad")
+    elif "calculator" in app_name:
+        os.system("calc")
+        talk("Opening Calculator")
+
+def get_weather(city):
+    api_key = "YOUR_API_KEY"  # Replace with your actual API key
+    base_url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}"
+    response = requests.get(base_url)
+    data = response.json()
+    if data["cod"] != "404":
+        weather_data = data["weather"][0]["description"]
+        temperature = data["main"]["temp"] - 273.15  # Convert from Kelvin to Celsius
+        talk(f"The weather in {city} is {weather_data} with a temperature of {temperature:.2f} degrees Celsius.")
+    else:
+        talk(f"Sorry, I couldn't fetch weather information for {city}.")
+
+def run_phantom():
+    talk(f"Hello, I'm {your_name}, how can I help you, sir?")
+    while True:
+        command = take_command()
+        print(command)
+
+        if 'play' in command:
+            song = command.replace('play', '')
+            play_music(song)
+        elif 'time' in command:
+            get_time()
+        elif 'who is' in command:
+            person = command.replace('who is', '')
+            search_wikipedia(person)
+        elif 'date' in command:
+            get_date()
+        elif 'are you single' in command:
+            are_you_single()
+        elif 'joke' in command:
+            tell_joke()
+        elif 'start stopwatch' in command:
+            start_stopwatch()
+        elif 'stop stopwatch' in command:
+            stop_stopwatch()
+        elif 'start timer for' in command:
+            try:
+                duration = int(command.split()[-2])
+                start_timer(duration)
+            except ValueError:
+                talk("Invalid timer duration. Please specify a valid duration in seconds.")
+        elif 'stop timer' in command:
+            stop_timer()
+        elif 'search for' in command:
+            query = command.replace('search for', '')
+            search_web(query)
+        elif 'open' in command:
+            app_name = command.replace('open', '')
+            open_application(app_name)
+        elif 'weather in' in command:
+            city = command.replace('weather in', '')
+            get_weather(city)
+        elif 'exit' in command:
+            talk(f"Goodbye, sir! {your_name} is going offline.")
+            exit()
+        else:
+            talk('Please say the command again.')
+
+if __name__ == "__main__":
+    run_phantom()
